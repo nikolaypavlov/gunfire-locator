@@ -8,6 +8,50 @@ psd <- function(spec) {
   (abs(spec)^2) / length(spec)
 }
 
+energy <- function(x) {
+  sum(abs(x)^2)
+}
+
+energy_band_dist <- function(x, filt1, filt2) {
+  band1 <- filter(filt1, x)
+  band2 <- filter(filt2, x)
+  energy(band1) / energy(band2)
+}
+
+check_bands <- function(x, n, thr, wl, filt1, filt2) {
+  vec <- c()
+  for (i in n) {
+    if (energy_band_dist(x[i:(i+wl)], filt1, filt2) > thr) {
+      vec <- append(vec, i)
+    }
+  }
+  vec
+}
+
+normalize11 <- function(x) {
+  (x - mean(x)) / max(abs(x-mean(x)))
+}
+
+get_index <- function(x, n, cell_size=1024, guard_cells=1, trained_cells=1) {
+  ((which(n) + guard_cells + trained_cells) - 1) * cell_size + 1
+}
+
+cfar <- function(x, false_alarm_rate=0.01, cell_size=1024, guard_cells=1, trained_cells=1) {
+  n <- 2 * trained_cells
+  thr <- n * (false_alarm_rate^(-1/n) - 1)
+  trained_size <- cell_size * trained_cells
+  right_position <- cell_size*(2*guard_cells + trained_cells + 1) + 1
+  test_cell_start <- trained_size + (guard_cells*cell_size) + 1
+  test_cell_end <- test_cell_start + cell_size - 1
+  
+  trained <- append(x[1:trained_size], x[right_position:length(x)])
+  test <- x[test_cell_start:test_cell_end]
+  
+  noise_power <- sum(trained^2) / 2*trained_cells
+  sig_power <- sum(test^2)
+  (sig_power / noise_power) > thr
+}
+
 spec_moment <- function(spec, m) {
   len <- length(spec)
   spec.psd <- psd(spec)
